@@ -15,7 +15,7 @@ const RegisterSheet = () => {
       });
 
       if (response.ok) {
-        navigate('/main');
+        navigate('/OnseiNippou_app');
       } else {
         alert('登録に失敗しました。');
       }

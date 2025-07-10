@@ -18,7 +18,7 @@ import com.example.OnseiNippou_app.Service.RegisterSheetsService;
 public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler {
 	
 	@Autowired
-	private RegisterSheetsService firstSheetRegistryService;
+	private RegisterSheetsService registerSheetService;
 	
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request,
@@ -28,7 +28,7 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
 		OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
 		String email = (String) oauth2User.getAttributes().get("email");
 		
-		boolean hasSheet = firstSheetRegistryService.hasSheetId(email);
+		boolean hasSheet = registerSheetService.hasSheetId(email);
 		
 		if (hasSheet) {
 			response.sendRedirect("/OnseiNippou_app");
