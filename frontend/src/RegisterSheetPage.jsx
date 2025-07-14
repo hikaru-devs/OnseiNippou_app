@@ -8,10 +8,11 @@ const RegisterSheet = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('/register-sheet', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/submit-sheet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetUrl: url })
+        body: JSON.stringify({ sheetUrl: url }),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -27,18 +28,18 @@ const RegisterSheet = () => {
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'Arial' }}>
-      <h2>📄 スプレッドシートURL登録</h2>
+      <h2 className="text-2xl font-bold mb-4">📄 あなたの日報のスプレッドシートURLを貼り付けてください。</h2>
       <form onSubmit={handleSubmit}>
         <input
           type="text"
           placeholder="https://docs.google.com/spreadsheets/..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          style={{ width: '100%', padding: '0.5rem' }}
+          className="w-full"
           required
         />
         <button type="submit" style={{ marginTop: '1rem' }}>
-          登録して開始
+          登録する➡️
         </button>
       </form>
     </div>

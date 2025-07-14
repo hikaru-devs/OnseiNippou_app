@@ -14,7 +14,7 @@ import com.google.cloud.speech.v1.SpeechRecognitionResult;
 import com.google.protobuf.ByteString;
 
 @Service
-public class SpeechToTextService {
+public class SpeechToTextApiService {
 	
 	public String recognizeFromWav(String wavFilePath) throws IOException {
 		try (SpeechClient speechClient = SpeechClient.create()) {
@@ -31,6 +31,8 @@ public class SpeechToTextService {
 					.setEncoding(RecognitionConfig.AudioEncoding.LINEAR16)
 					.setSampleRateHertz(16000)
 					.setLanguageCode("ja-JP")
+					.setEnableAutomaticPunctuation(true)
+					.setModel("latest_long") // 高精度・句読点強化・長時間向け
 					.build();
 			
 			//認識を実行

@@ -20,16 +20,18 @@ public class SecurityConfig {
 		    .requestMatchers(
 		        "/upload-audio", 
 		        "/submit-text", 
-		        "/register-sheet"
+		        "/submit-sheet",
+		        "/onsei-nippou-page",
+		        "/register-sheet-page"
 		    ).permitAll() // ← 🔑 APIは「許可」
-		    .requestMatchers(
-		        "/OnseiNippou_app", 
-		        "/sheet-register"
-		    ).authenticated() // ← 🔑 UIだけ認証要求
+		   /* .requestMatchers(
+		        "/onsei-nippou-page", 
+		        "/register-sheet-page"
+		    ).authenticated()*/ // ← 🔑 UIだけ認証要求
 		    .anyRequest().permitAll()
 		  )
 			.oauth2Login(oauth -> oauth
-					.successHandler(successHandler)
+					.successHandler(successHandler) // ←GoogleOAthログイン後に、CustomOAuth2SuccessHandler を使って、リダイレクト制御している
 			);
 		return http.build();
 	}

@@ -10,15 +10,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.OnseiNippou_app.Service.RegisterSheetsService;
+import com.example.OnseiNippou_app.Service.RegisterSheetService;
 
 @RestController
 public class RegisterSheetController {
 	
 	@Autowired
-	private RegisterSheetsService registerSheetsService;
+	private RegisterSheetService registerSheetService;
 	
-	@PostMapping("/register-sheet")
+	@PostMapping("/submit-sheet")
 	public String registerSheet(@AuthenticationPrincipal OAuth2User oauth2User, 
 			@RequestBody SheetUrlRequest request) {
 		String email = oauth2User.getAttribute("email");
@@ -29,7 +29,7 @@ public class RegisterSheetController {
 			return "Invalid sheet URL";
 		}
 		
-		registerSheetsService.register(email, sheetId);
+		registerSheetService.register(email, sheetId);
 		return "Sheet registered successfully";
 	}
 	

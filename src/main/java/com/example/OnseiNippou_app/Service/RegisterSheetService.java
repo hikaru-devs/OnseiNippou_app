@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 
 @Service
-public class RegisterSheetsService {
+public class RegisterSheetService {
     private final ConcurrentHashMap<String, String> registry = new ConcurrentHashMap<>();
 
     public boolean hasSheetId(String email) {

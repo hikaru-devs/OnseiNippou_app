@@ -17,7 +17,7 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
 @Service
-public class SendToSheetService {
+public class SendToSheetApiService {
 	
 	@Value("${GOOGLE_APPLICATION_CREDENTIALS}")
 	private String credentialsPath;

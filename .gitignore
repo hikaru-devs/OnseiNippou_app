@@ -35,16 +35,16 @@ build/
 ### React / frontend ###
 frontend/node_modules/
 frontend/build/
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
+frontend/.env
+frontend/.env.*
 frontend/.eslintcache
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
-frontend/package-lock.json
 frontend/.DS_Store
+frontend/dist/
+frontend/.vite/
+
 
 ### application.properties ###
 src/main/resources/application.properties

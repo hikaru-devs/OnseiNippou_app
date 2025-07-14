@@ -1,3 +1,5 @@
+// OAuth2認証成功後のロジックを担当するクラス
+
 package com.example.OnseiNippou_app.Security;
 
 
@@ -12,13 +14,13 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
-import com.example.OnseiNippou_app.Service.RegisterSheetsService;
+import com.example.OnseiNippou_app.Service.RegisterSheetService;
 
 @Component
 public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler {
 	
 	@Autowired
-	private RegisterSheetsService registerSheetService;
+	private RegisterSheetService registerSheetService;
 	
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request,
@@ -31,9 +33,9 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
 		boolean hasSheet = registerSheetService.hasSheetId(email);
 		
 		if (hasSheet) {
-			response.sendRedirect("/OnseiNippou_app");
+			response.sendRedirect("/onsei-nippou-page");
 		} else {
-			response.sendRedirect("/sheet-register");
+			response.sendRedirect("/register-sheet-page");
 		}
 	}
 

@@ -17,16 +17,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.OnseiNippou_app.Service.SendToSheetService;
-import com.example.OnseiNippou_app.Service.SpeechToTextService;
+import com.example.OnseiNippou_app.Service.SendToSheetApiService;
+import com.example.OnseiNippou_app.Service.SpeechToTextApiService;
 
 @RestController
 public class OnseiNippouController {
 	
 	@Autowired
-	private SpeechToTextService sttService;
+	private SpeechToTextApiService speechToTextApiService;
 	@Autowired
-	private SendToSheetService sheetsService;
+	private SendToSheetApiService sendToSheetApiService;
 	
 	@Value("${GOOGLE_APPLICATION_CREDENTIALS}")
 	private String googleCredentialsPath;
@@ -48,7 +48,7 @@ public class OnseiNippouController {
 			System.out.println("webmファイルパス: " + webmFile.getAbsolutePath());
 			
 			//GoogleColud STTで文字起こし
-			String transcript = sttService.recognizeFromWav(wavFile.getAbsolutePath());
+			String transcript = speechToTextApiService.recognizeFromWav(wavFile.getAbsolutePath());
 			
 			// 結果を返す
 			return ResponseEntity.ok().body(new TranscriptResponse(transcript));
@@ -63,7 +63,7 @@ public class OnseiNippouController {
 	public ResponseEntity<String> submitText(@RequestBody Map<String, String> payload) {
 		try {
 			String text = payload.get("text");
-			sheetsService.appendNippou(text);
+			sendToSheetApiService.appendNippou(text);
 			return ResponseEntity.ok("スプレッドシートに送信しました！");
 		} catch (Exception e) {
 			e.printStackTrace();
