@@ -4,7 +4,7 @@ function LoginPage() {
   const [email, setEmail] = useState('');
 
   const handleGoogleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/login/oauth2/code/google`; // Redirect to Google OAuth
+    window.location.href = `${import.meta.env.VITE_API_URL}/oauth2/authorization/google`; // Redirect to Google OAuth
   };
 
   const handleEmailContinue = () => {

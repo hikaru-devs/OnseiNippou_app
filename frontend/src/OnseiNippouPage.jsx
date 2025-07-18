@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-function App() {
+function OnseiNippou() {
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -24,7 +24,7 @@ function App() {
       formData.append('audio', blob, 'recording.webm');
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-audio`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload-audio`, {
           method: 'POST',
           body: formData,
           credentials: 'include', // Include cookies for session management
@@ -62,7 +62,7 @@ function App() {
   const handleTextChange = (e) => setTranscript(e.target.value);
 
   const submitText = async () => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/submit-text`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submit-text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: transcript }),
@@ -119,4 +119,4 @@ function App() {
   );
 }
 
-export default App;
+export default OnseiNippou;

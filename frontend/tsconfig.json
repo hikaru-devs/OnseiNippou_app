@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    /* Language & Environment */
+    "target": "ES2020",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2020"
+    ],
+    /* Modules */
+    "module": "ESNext",
+    "moduleResolution": "Bundler", // ← .mts/.cts を解決
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
+    /* JSX (React 17+ 新トランスフォーム) */
+    "jsx": "react-jsx",
+    /* Strictness & Lint */
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    /* Emit */
+    "noEmit": true,
+    "resolveJsonModule": true,
+    /* Global types */
+    "types": [
+      "vite/client"
+    ]
+  },
+  "include": [
+    "src",
+    "vite.config.ts"
+  ]
+}

@@ -4,33 +4,36 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.OnseiNippou_app.Service.RegisterSheetService;
 
 @RestController
+@RequestMapping("/api")
 public class RegisterSheetController {
 	
 	@Autowired
 	private RegisterSheetService registerSheetService;
 	
+	
+	// 内部クラスでのDTO定義
+	public static class SheetUrlRequest {
+		private String sheetUrl;
+		public String getSheetUrl() { return sheetUrl; }
+		public void setShettUrl(String sheetUrl) { this.sheetUrl = sheetUrl; }
+	}
+
 	@PostMapping("/submit-sheet")
-	public String registerSheet(@AuthenticationPrincipal OAuth2User oauth2User, 
-			@RequestBody SheetUrlRequest request) {
-		String email = oauth2User.getAttribute("email");
+	public ResponseEntity<String> registerSheet(@RequestBody SheetUrlRequest request) {
 		String sheetUrl = request.getSheetUrl();
 		String sheetId = extractSheetId(sheetUrl);
-		
-		if (sheetId == null) {
-			return "Invalid sheet URL";
-		}
-		
-		registerSheetService.register(email, sheetId);
-		return "Sheet registered successfully";
+
+		registerSheetService.registerSheetId(sheetId);
+		return ResponseEntity.ok("シート登録が完了しました！");
 	}
 	
 	private String extractSheetId(String url) {
@@ -39,11 +42,5 @@ public class RegisterSheetController {
 		return matcher.find() ? matcher.group(1) : null;
 	}
 	
-	// 内部クラスでのDTO定義
-	public static class SheetUrlRequest {
-		private String sheetUrl;
-		public String getSheetUrl() { return sheetUrl; }
-		public void setShettUrl(String sheetUrl) { this.sheetUrl = sheetUrl; }
-	}
 
 }

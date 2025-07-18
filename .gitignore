@@ -1,50 +1,91 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# ===================================================================
+# General
+# ===================================================================
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-### STS ###
-.apt_generated
+# ===================================================================
+# IDE
+# ===================================================================
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse / STS
+.settings/
 .classpath
-.factorypath
 .project
-.settings
+.apt_generated
+.factorypath
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# ===================================================================
+# Java / Maven (Backend)
+# ===================================================================
+# Maven build output
+target/
 
-### VS Code ###
-.vscode/
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
 
-### React / frontend ###
+# Log files
+*.log
+
+# ===================================================================
+# Node.js / Vite (Frontend)
+# ===================================================================
+# Node modules
 frontend/node_modules/
-frontend/build/
-frontend/.env
-frontend/.env.*
-frontend/.eslintcache
+
+# Vite build output
+frontend/dist/
+
+# Vite cache
+frontend/.vite/
+
+# Log files
+frontend/logs/
+frontend/*.log
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
-frontend/.DS_Store
-frontend/dist/
-frontend/.vite/
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
 
+# Local environment variables
+# IMPORTANT: Commit a template file (e.g., .env.example) instead
+frontend/.env.local
+frontend/.env.*.local
+
+# ESLint cache
+frontend/.eslintcache
+
+# ===================================================================
+# Application-specific
+# ===================================================================
+# Local application properties
+# IMPORTANT: Commit application.properties as a template.
+# Create and use application-local.properties for local overrides.
+src/main/resources/application-local.properties
+
+# Sensitive files
+gcp-key/
 
 ### application.properties ###
 src/main/resources/application.properties

@@ -10,7 +10,7 @@ function Root() {
       <Route path="/" element={<LoginPage />} />
       <Route path="/onsei-nippou-page" element={<OnseiNippouPage />} />
       <Route path="/register-sheet-page" element={<RegisterSheetPage />} />
-      <Route paht="/login" element={<LoginPage />} />
+      <Route path="/login" element={<LoginPage />} />
     </Routes>
   );
 }
