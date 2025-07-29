@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  dbproxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2
+    command:
+      - "--address=0.0.0.0"
+      - "--port=3306"
+      - "onsei-nippou-app:asia-northeast1:onsei-nippou-sql"   # ← Cloud SQL 接続名
+    volumes:
+      # サービスアカウント鍵を読み取り専用でマウント
+      - ./gcp-key/onsei-nippou-app-913b29866ad5.json:/config/key.json:ro
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /config/key.json
+    expose:
+      - "3306"
+
+  app:
+    image: onsei-nippou-app
+    container_name: onsei-app
+    ports:
+      - "8080:8080"
+    environment:
+      # アプリ側は localhost:3306 を叩く設定のままで OK
+      SPRING_DATASOURCE_URL: jdbc:mysql://dbproxy:3306/onsei_nippou_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Tokyo&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: Soccer#15
+      GOOGLE_APPLICATION_CREDENTIALS: /config/key.json
+    volumes:
+      - ./gcp-key/onsei-nippou-app-913b29866ad5.json:/config/key.json:ro
+    depends_on:
+      - dbproxy

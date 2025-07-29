@@ -24,7 +24,7 @@ function OnseiNippou() {
       formData.append('audio', blob, 'recording.webm');
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload-audio`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/audio-transcribe`, {
           method: 'POST',
           body: formData,
           credentials: 'include', // Include cookies for session management
@@ -62,7 +62,7 @@ function OnseiNippou() {
   const handleTextChange = (e) => setTranscript(e.target.value);
 
   const submitText = async () => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/submit-text`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/submit-report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: transcript }),
