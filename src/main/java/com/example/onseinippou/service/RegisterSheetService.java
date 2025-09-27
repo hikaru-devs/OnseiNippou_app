@@ -9,18 +9,24 @@ import com.example.onseinippou.security.CurrentUserProvider;
 
 import lombok.RequiredArgsConstructor;
 
-
-//---------------------------------------------------------------------
-// ユーザーのスプレッドシートを登録するクラス
-//---------------------------------------------------------------------
-
+/**
+ * ユーザーのスプレッドシートを登録するクラス.
+ */
 @Service
 @RequiredArgsConstructor   // ← Lombok。コンストラクタ DI
 @Transactional
 public class RegisterSheetService {
-	/* ログインユーザーの最新情報を取得 */
+
+	/**
+	 * ログインユーザーを“最新状態”で取得する共通クラス.
+	 */
 	private final CurrentUserProvider currentUserProvider;
 	
+	
+	/**
+	 * スプレッドシートを登録する.
+	 * @param sheetId シートURL.
+	 */
 	public void registerSheetId(String sheetId) {
 		User user = currentUserProvider.getCurrentUser(); 
 		

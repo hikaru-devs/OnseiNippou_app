@@ -35,7 +35,7 @@ public class SpeechToTextClient {
 					.setSampleRateHertz(16000)
 					.setLanguageCode("ja-JP")
 					.setEnableAutomaticPunctuation(true)
-					.setModel("latest_long") // 高精度・句読点強化・長時間向け
+					.setModel("latest_") // 高精度・句読点強化・長時間向け
 					.build();
 			
 			//認識を実行
