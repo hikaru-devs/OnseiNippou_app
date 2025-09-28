@@ -22,38 +22,27 @@ import lombok.NoArgsConstructor;
 
 @Entity
 
-
 @Table(name = "reports_meta")
-@Getter @Builder
+@Getter
+@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class ReportMeta {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-    
-    /* シートID */
-    @Column(nullable = false)
-    private String sheetId;
-    
-    /* 書き込んだ行番号 */
-    @Column(nullable = false)
-    private Integer sheetRow;
-    private LocalDateTime createdAt;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
+
+	/* シートID */
+	@Column(nullable = false)
+	private String sheetId;
+
+	/* 書き込んだ行番号 */
+	@Column(nullable = false)
+	private Integer sheetRow;
+	private LocalDateTime createdAt;
 }
-
-
-/**
- * fetch = FetchType.LAZY：関連先の User は実際にアクセスするまで DB から読み込まない（パフォーマンス最適化）
- * optional = false：この関連は必ず存在しなければならない（user が null だと例外）
- */
-
-
-
-
-

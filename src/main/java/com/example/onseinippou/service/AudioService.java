@@ -14,37 +14,36 @@ import com.example.onseinippou.infra.stt.SpeechToTextClient;
 
 import lombok.RequiredArgsConstructor;
 
-//---------------------------------------------------------------------
-//ReportService
-//- WebM形式の音声ファイルを受け取り、一時保存→WAV変換→
-// Google Speech-to-Text APIで文字起こしを実行するサービスクラス
-//---------------------------------------------------------------------
-
+/**
+ * googleSpeechToTextAPIで文字起こしを実行するクラス.
+ */
 @Service
 @RequiredArgsConstructor
 public class AudioService {
 	
+	/**
+	 * googleSpeechToTextの仕様や取り決めをまとめた設定クラス.
+	 */
 	private final SpeechToTextClient speechToTextClient;
 	
-    /**
-     * 1) MultipartFile → 一時WEBMファイルに保存
-     * 2) WEBM → WAV 変換(16kHz, モノラル, LINEAR16)
-     * 3)  Google STT を呼び出して文字起こし結果を返却
-     */
+	/**
+	 * @param file 受信したレコードファイル.
+	 * @return googleSpeechToTextで変換されたテキスト.
+	 */
 	public String transcribe(MultipartFile file) {
 		try {
 			System.out.println("🔔 音声ファイル受信: " + file.getOriginalFilename());
-			// ① 一時WEBMファイルに保存
+			// 一時WEBMファイルに保存
 			File webm =Files.createTempFile("recoding-", ".webm").toFile();
 			file.transferTo(webm);
 			System.out.println("一時WEBMファイルパス: " + webm.getAbsolutePath());
 			
-			// ② WAV へ変換
+			// WAV へ変換
 			File wav = new File(webm.getParent(), UUID.randomUUID() + ".wav");
 			convertWebmToWav(webm, wav);
 			System.out.println("✅ 変換完了: " + wav.getAbsolutePath());
 			
-			// ③ Google STT を呼び出し
+			// Google STT を呼び出し
 			return speechToTextClient.recognizeFromWav(wav.getAbsolutePath());
 		} catch (InterruptedException ie) {
 			// --- 割り込みを復元してからラップ ---
@@ -58,8 +57,7 @@ public class AudioService {
 	}
 	
     /**
-     * 1) ffmpegを使って入力WEBMファイルをWAVへ変換
-     * 2) プロセスの終了コードをチェックし、失敗時は例外を投げる
+     * ffmpegを使って入力WEBMファイルをWAVへ変換する.
      *
      * @param input  入力のWEBMファイル
      * @param output 出力先のWAVファイル

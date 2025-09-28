@@ -47,7 +47,7 @@ const RegisterSheet: React.FC = () => {
 
 
   return (
-    <div className="p-8 font-sans">
+    <div className="min-h-screen p-8 font-sans bg-white dark:bg-gray-900 dark:text-gray-200">
       <h2 className="text-2xl font-bold mb-4">
         📄 あなたの日報スプレッドシートの URL を入力してください
       </h2>
@@ -58,7 +58,7 @@ const RegisterSheet: React.FC = () => {
           placeholder="https://docs.google.com/spreadsheets/..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="w-full border px-2 py-1 rounded"
+          className="w-full border px-2 py-1 rounded dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
           required
         />
 

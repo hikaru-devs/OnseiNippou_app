@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
  * ユーザーのスプレッドシートを登録するクラス.
  */
 @Service
-@RequiredArgsConstructor   // ← Lombok。コンストラクタ DI
+@RequiredArgsConstructor // ← Lombok。コンストラクタ DI
 @Transactional
 public class RegisterSheetService {
 
@@ -21,28 +21,25 @@ public class RegisterSheetService {
 	 * ログインユーザーを“最新状態”で取得する共通クラス.
 	 */
 	private final CurrentUserProvider currentUserProvider;
-	
-	
+
 	/**
 	 * スプレッドシートを登録する.
 	 * @param sheetId シートURL.
 	 */
 	public void registerSheetId(String sheetId) {
-		User user = currentUserProvider.getCurrentUser(); 
-		
-		// ① バリデーション
-		if(sheetId == null || sheetId.isBlank()) {
+		User user = currentUserProvider.getCurrentUser();
+
+		// バリデーション
+		if (sheetId == null || sheetId.isBlank()) {
 			throw new IllegalArgumentException("sheetIdが空です。");
 		}
-		
-		// ④ 更新
+
+		// 更新
 		user.setSheetId(sheetId);
 		// @Transactional により自動 flush
-		
+
 	}
 }
-
-
 
 /*
 @Service
@@ -78,7 +75,3 @@ public class RegisterSheetService {
 | ⑤ スレッドセーフ／再利用性        | 15  | 10 | シンプルだが `SecurityContextHolder` を直接触るとユニットテストが難しい。DI で `Authentication` を渡す
 方法もある。|
 */
-
-
-
-

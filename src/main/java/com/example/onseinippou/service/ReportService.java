@@ -19,21 +19,21 @@ import lombok.RequiredArgsConstructor;
 public class ReportService {
 
     private final CurrentUserProvider currentUserProvider;      // ← Security 層
-    private final GoogleSheetsClient sheetsClient;              // ← Infra 層
+    private final GoogleSheetsClient googleSheetsClient;              // ← Infra 層
     private final ReportMetaRepository reportMetaRepository;
 
     @Transactional
     public void sendToSheets(String text) {
 
-        /* 1. ログインユーザー情報を取得 */
+        // ログインユーザー情報を取得.
         User user = currentUserProvider.getCurrentUser();
         String sheetId = user.getSheetId();
 
-        /* 2. Sheets へ追記して行番号を取得 */
+        // Sheets へ追記して行番号を取得 .
         GoogleSheetsClient.AppendResult appendResult =
-                sheetsClient.appendNippou(sheetId, text);
+        		googleSheetsClient.appendNippou(sheetId, text);
 
-        /* 3. メタを保存 */
+        // メタを保存.
         ReportMeta meta = ReportMeta.builder()
                 .user(user)
                 .sheetId(appendResult.sheetId())

@@ -82,9 +82,9 @@ function OnseiNippou() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="p-8 font-sans">
-        <h2 className="text-2xl font-bold mb-4">🎤 音声日報アプリ</h2>
+        <h2 className="text-2xl font-bold mb-4 dark:text-white">🎤 音声日報アプリ</h2>
 
         <div className="flex space-x-4 mb-4">
           <button onClick={startRecording} disabled={isRecording}
@@ -93,25 +93,25 @@ function OnseiNippou() {
             録音開始
           </button>
           <button onClick={stopRecording} disabled={!isRecording}
-            className="border border-indigo-500 text-indigo-700 font-semibold py-2 px-4 rounded hover:bg-indigo-50 disabled:opacity-50"
+            className="border border-indigo-500 text-indigo-700 font-semibold py-2 px-4 rounded hover:bg-indigo-50 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-gray-800"
           >
             録音停止
           </button>
         </div>
 
         <div style={{ marginTop: '1rem' }}>
-          <label className="block text-base font-medium text-gray-700">📝 文字起こし結果：</label>
+          <label className="block text-base font-medium text-gray-700 dark:text-gray-300">📝 文字起こし結果：</label>
           <br />
           <textarea
             rows="10"
             placeholder="録音結果がここに表示されます"
             value={transcript}
             onChange={handleTextChange}
-            className="max-w-full sm:w-[36rem] w-full"
+            className="max-w-full sm:w-[36rem] w-full p-2 border rounded border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600"
           />
         </div>
 
-        <button onClick={submitText} disabled={!transcript}>
+        <button onClick={submitText} disabled={!transcript} className="mt-4 rounded bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
           📤 日報を送信
         </button>
       </div>
