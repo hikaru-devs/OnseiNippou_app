@@ -1,60 +1,80 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import HamburgerMenu from './HamburgerMenu'; // Import the menu
 
 function OnseiNippou() {
-  const [mediaRecorder, setMediaRecorder] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Loading state
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // Menu state
-  const recordingChunksRef = useRef([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const mediaRecorderRef = useRef(null);
+  const socketRef = useRef(null);
+  const latestTranscriptRef = useRef(''); // To hold the latest full transcript received from server
 
   const startRecording = async () => {
-    recordingChunksRef.current = [];
+    setTranscript(''); // Clear previous transcript from UI
+    latestTranscriptRef.current = ''; // Clear internal latest transcript
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = recorder;
+
+      const wsUrl = import.meta.env.VITE_API_URL.replace(/^http/, 'ws') + '/ws/transcribe';
+      const ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('WebSocket connection established.');
+        setStatusMessage('サーバーに接続しました。録音中です...');
+        recorder.start(500); // Send audio data every 500ms
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.transcript) {
+          // Server now sends the full accumulated transcript on close, or potentially updates during recording.
+          // We store the latest received transcript.
+          latestTranscriptRef.current = data.transcript;
+        }
+        if (data.status) {
+          if (data.status === 'reconnecting') {
+            setStatusMessage('接続が不安定です。再接続しています...');
+          }
+        }
+        if (data.error) {
+          console.error('Server error:', data.error);
+          setStatusMessage(`エラー: ${data.error}`);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setStatusMessage('WebSocket接続エラーが発生しました。');
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket connection closed.');
+        // Display the final accumulated transcript when the connection closes
+        setTranscript(latestTranscriptRef.current);
+        setStatusMessage('録音が完了しました。');
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+        }
+        setIsRecording(false);
+      };
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          recordingChunksRef.current.push(e.data);
+        if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+          ws.send(e.data);
         }
       };
-
-      recorder.onstop = async () => {
-        setIsLoading(true); // Start loading
-        const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append('audio', blob, 'recording.webm');
-
-        try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/audio-transcribe`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-          });
-
-          if (!response.ok) {
-            const text = await response.text();
-            console.error('❌ サーバーからのエラーレスポンス:', response.status, text);
-            alert('送信に失敗しました（サーバー側エラー）');
-            return;
-          }
-
-          const result = await response.json();
-          setTranscript(result.text);
-        } catch (err) {
-          console.error('送信エラー:', err);
-          alert('音声の送信に失敗しました。');
-        } finally {
-          setIsLoading(false); // Stop loading
-        }
+      
+      recorder.onstart = () => {
+        setIsRecording(true);
       };
 
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
     } catch (error) {
       console.error("マイクへのアクセス許可が必要です。", error);
       alert("マイクへのアクセスが拒否されました。録音を開始できません。");
@@ -62,16 +82,21 @@ function OnseiNippou() {
   };
 
   const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-      setIsRecording(false);
+    setStatusMessage('文字起こしを処理中です...');
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
     }
+    // Closing the socket will trigger the onclose event, which handles the final transcript update.
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+    setIsRecording(false);
   };
 
   const handleTextChange = (e) => setTranscript(e.target.value);
 
   const submitText = async () => {
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/submit-report`, {
         method: 'POST',
@@ -92,18 +117,27 @@ function OnseiNippou() {
       console.error('送信エラー:', error);
       alert('日報の送信に失敗しました。');
     } finally {
-      setIsLoading(false); // Stop loading
+      setIsLoading(false);
     }
   };
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   return (
     <>
       <HamburgerMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-      <div
-        className={`min-h-screen bg-gray-50 dark:bg-gray-900 transition-all duration-300 ease-in-out`}>
-        {/* Main Content */}
+      <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 transition-all duration-300 ease-in-out`}>
         <div className="p-8 font-sans">
-          {/* Hamburger Button */}
           <button onClick={() => setIsMenuOpen(true)} className="absolute top-5 left-5 z-10">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
           </button>
@@ -124,13 +158,13 @@ function OnseiNippou() {
               </button>
             </div>
 
-            {isLoading && <div className="my-2"><span>処理中...</span></div>} {/* Loading Indicator */}
+            {(isLoading || statusMessage) && <div className="my-2"><span>{isLoading ? '処理中...' : statusMessage}</span></div>}
 
             <div className="mt-4 w-full max-w-lg">
               <label className="block text-base font-medium text-gray-700 dark:text-gray-300">📝 文字起こし結果：</label>
               <textarea
                 rows="10"
-                placeholder="録音結果がここに表示されます"
+                placeholder="録音を停止すると、ここに結果が表示されます"
                 value={transcript}
                 onChange={handleTextChange}
                 className="mt-1 w-full p-2 border rounded border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600"

@@ -20,24 +20,25 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
 public class ReportController {
-	
+
 	private final AudioService audioService;
 	private final ReportService reportService;
-	
-	/** 音声ファイルを受け取りテキスト化 */
+
+	/** 音声ファイルを一括で文字起こしするAPI（UIではストリーミング方式に改善したので現在未使用） */
 	@PostMapping("/audio-transcribe")
 	public ResponseEntity<TranscriptResponse> audioTranscribe(@RequestParam("audio") MultipartFile file) {
 		String transcript = audioService.transcribe(file);
 		return ResponseEntity.ok().body(new TranscriptResponse(transcript));
 	}
-	
+
 	/** テキストをスプレッドシートへ送信 */
 	@PostMapping("/submit-report")
 	public ResponseEntity<String> submitReport(@RequestBody @Valid ReportRequest reportRequest) {
 		reportService.sendToSheets(reportRequest.text());
 		return ResponseEntity.ok("スプレッドシートに送信しました！");
 	}
-	
+
 	/* 応答 DTO */
-    public record TranscriptResponse(String text) {}
+	public record TranscriptResponse(String text) {
+	}
 }
