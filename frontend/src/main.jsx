@@ -5,9 +5,9 @@ import Root from './Root.jsx'
 import './index.css' // Tailwind CSSのエントリポイント
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  // <React.StrictMode>
     <BrowserRouter>
       <Root />
     </BrowserRouter>
-  </React.StrictMode>
+  // </React.StrictMode>
 )

@@ -38,7 +38,7 @@ import com.example.onseinippou.domain.repository.ReportMetaRepository;
 import com.example.onseinippou.domain.repository.UserRepository;
 import com.example.onseinippou.infra.stt.SpeechToTextClient;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnableAutoConfiguration(exclude = {
 		DataSourceAutoConfiguration.class,
 		DataSourceTransactionManagerAutoConfiguration.class,
@@ -62,6 +62,8 @@ class AudioServiceTest {
 	@Captor
 	private ArgumentCaptor<Consumer<String>> onResultCaptor;
 	@Captor
+	private ArgumentCaptor<Runnable> onIdleTimeoutCaptor;
+	@Captor
 	private ArgumentCaptor<Consumer<Throwable>> onErrorCaptor;
 	@Captor
 	private ArgumentCaptor<TextMessage> sentMessageCaptor;
@@ -77,8 +79,11 @@ class AudioServiceTest {
 
 		mockAudioStreamObserver = mock(SpeechToTextClient.AudioStreamObserver.class);
 
-		when(mockSpeechToTextClient.startStreamingRecognize(onResultCaptor.capture(), onErrorCaptor.capture()))
-				.thenReturn(mockAudioStreamObserver);
+		when(mockSpeechToTextClient.startStreamingRecognize(
+				onResultCaptor.capture(),
+				onIdleTimeoutCaptor.capture(),
+				onErrorCaptor.capture()))
+						.thenReturn(mockAudioStreamObserver);
 	}
 
 	@Test
@@ -123,28 +128,30 @@ class AudioServiceTest {
 		SpeechToTextClient.AudioStreamObserver mockObserver2 = mock(SpeechToTextClient.AudioStreamObserver.class);
 
 		// STTクライアントが呼ばれるたびに、異なるObserverを返すように設定
-		when(mockSpeechToTextClient.startStreamingRecognize(onResultCaptor.capture(), onErrorCaptor.capture()))
-				.thenReturn(mockObserver1)
-				.thenReturn(mockObserver2);
+		when(mockSpeechToTextClient.startStreamingRecognize(onResultCaptor.capture(), onIdleTimeoutCaptor.capture(),
+				onErrorCaptor.capture()))
+						.thenReturn(mockObserver1)
+						.thenReturn(mockObserver2);
 
 		// 2. 【準備】コールバック関数(onResult)を格納するためのリストを手動で作成
 		final List<Consumer<String>> capturedOnResultConsumers = new ArrayList<>();
 
 		// 3. 【準備】Answerを使い、startStreamingRecognizeが呼ばれるたびの動作を定義
-		when(mockSpeechToTextClient.startStreamingRecognize(any(Consumer.class), any(Consumer.class)))
-				.thenAnswer((InvocationOnMock invocation) -> {
-					// 呼び出された際の1番目の引数(onResult)を取得
-					Consumer<String> onResult = invocation.getArgument(0);
-					// 手動でリストに追加する
-					capturedOnResultConsumers.add(onResult);
+		when(mockSpeechToTextClient.startStreamingRecognize(any(Consumer.class), any(Runnable.class),
+				any(Consumer.class)))
+						.thenAnswer((InvocationOnMock invocation) -> {
+							// 呼び出された際の1番目の引数(onResult)を取得
+							Consumer<String> onResult = invocation.getArgument(0);
+							// 手動でリストに追加する
+							capturedOnResultConsumers.add(onResult);
 
-					// リストのサイズ（呼び出し回数）に応じて、返すObserverを切り替える
-					if (capturedOnResultConsumers.size() == 1) {
-						return mockObserver1; // 1回目の呼び出しではObserver1を返す
-					} else {
-						return mockObserver2; // 2回目の呼び出しではObserver2を返す
-					}
-				});
+							// リストのサイズ（呼び出し回数）に応じて、返すObserverを切り替える
+							if (capturedOnResultConsumers.size() == 1) {
+								return mockObserver1; // 1回目の呼び出しではObserver1を返す
+							} else {
+								return mockObserver2; // 2回目の呼び出しではObserver2を返す
+							}
+						});
 
 		// 4. 【実行】両方のセッションを開始する
 		audioService.startStreamingTranscription(mockSession1);
@@ -220,11 +227,11 @@ class AudioServiceTest {
 		// 3. 新しいストリームを開始しようとする (restart処理)
 		//    ⇒ startStreamingRecognizeが再度呼ばれる
 		inOrder.verify(mockSpeechToTextClient, timeout(2000))
-				.startStreamingRecognize(any(Consumer.class), any(Consumer.class));
+				.startStreamingRecognize(any(Consumer.class), any(Runnable.class), any(Consumer.class));
 
 		// トータルで2回呼ばれていることを確認
 		verify(mockSpeechToTextClient, times(2))
-				.startStreamingRecognize(any(Consumer.class), any(Consumer.class));
+				.startStreamingRecognize(any(Consumer.class), any(Runnable.class), any(Consumer.class));
 	}
 
 	// TODO: シナリオ3（ffmpegへの書き込み失敗）のテストケースを追加
@@ -261,16 +268,17 @@ class AudioServiceTest {
 
 		// 3-3. 新しいストリームを開始しようとする（合計2回呼ばれる）
 		verify(mockSpeechToTextClient, timeout(2000).times(2))
-				.startStreamingRecognize(any(Consumer.class), any(Consumer.class));
+				.startStreamingRecognize(any(Consumer.class), any(Runnable.class), any(Consumer.class));
 	}
 
 	@Test
 	@DisplayName("異常系 2-3: 回復処理に失敗した場合、最終的にエラーを通知してセッションをクローズする")
 	void recoveryFails_finallyClosesSession() throws Exception {
 		// 1. 【準備】このテスト専用のwhen設定で、Captorを正しく使う
-		when(mockSpeechToTextClient.startStreamingRecognize(onResultCaptor.capture(), onErrorCaptor.capture()))
-				.thenReturn(mockAudioStreamObserver) // 1回目は成功
-				.thenThrow(new IOException("Failed to reconnect to STT API")); // 2回目は失敗
+		when(mockSpeechToTextClient.startStreamingRecognize(onResultCaptor.capture(), onIdleTimeoutCaptor.capture(),
+				onErrorCaptor.capture()))
+						.thenReturn(mockAudioStreamObserver) // 1回目は成功
+						.thenThrow(new IOException("Failed to reconnect to STT API")); // 2回目は失敗
 
 		// 2. 【実行】
 		audioService.startStreamingTranscription(mockSession);

@@ -6,12 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.example.onseinippou.application.dto.report.ReportRequest;
-import com.example.onseinippou.service.AudioService;
 import com.example.onseinippou.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
@@ -21,15 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ReportController {
 
-	private final AudioService audioService;
 	private final ReportService reportService;
-
-	/** 音声ファイルを一括で文字起こしするAPI（UIではストリーミング方式に改善したので現在未使用） */
-	@PostMapping("/audio-transcribe")
-	public ResponseEntity<TranscriptResponse> audioTranscribe(@RequestParam("audio") MultipartFile file) {
-		String transcript = audioService.transcribe(file);
-		return ResponseEntity.ok().body(new TranscriptResponse(transcript));
-	}
 
 	/** テキストをスプレッドシートへ送信 */
 	@PostMapping("/submit-report")

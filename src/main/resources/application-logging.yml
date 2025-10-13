@@ -1,4 +1,7 @@
 logging.level.org.springframework.web.servlet.resource: INFO # Springの静的リソース配信処理（CSS, JS等）のログ出力レベルを指定する。
-logging.level.org.springframework.web: INFO # SpringのWeb関連全体（コントローラー等）のログ出力レベルを指定する。
+logging.level.org.springframework.web: INFO
+# AudioServiceのログレベルをDEBUGに設定し、詳細な情報を表示する
+logging.level.com.example.onseinippou.service.AudioService: INFO
+# SpringのWeb関連全体（コントローラー等）のログ出力レベルを指定する。
 server.error.include-message: never # サーバーエラー時のレスポンスにエラーメッセージ(message)を含めるかどうかを制御する。
 

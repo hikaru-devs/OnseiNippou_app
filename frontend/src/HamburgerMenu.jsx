@@ -1,6 +1,9 @@
 import React from 'react';
 
 const HamburgerMenu = ({ isOpen, onClose, userName, userEmail, profileImageUrl }) => {
+  // アップデート情報モーダルの表示状態を管理するstate
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  
   // Mock data for stats and links, to be replaced with props later
   const stats = {
     submissionCount: 'comingsoon',

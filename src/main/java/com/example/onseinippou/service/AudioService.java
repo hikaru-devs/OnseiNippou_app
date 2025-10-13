@@ -1,21 +1,14 @@
 package com.example.onseinippou.service;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -34,272 +27,230 @@ import lombok.RequiredArgsConstructor;
 public class AudioService {
 
 	private static final Logger logger = LoggerFactory.getLogger(AudioService.class);
-
 	/** Speech-to-Text APIとの通信を行うクライアント。 */
 	private final SpeechToTextClient speechToTextClient;
 
 	/**
 	 * WebSocketセッションごとのストリーミング状態を管理する内部クラス。
-	 * ffmpegプロセス、その入力ストリーム、STTクライアントのオブザーバーを保持する。
 	 */
 	static class StreamingContext {
-		final SpeechToTextClient.AudioStreamObserver audioStreamObserver;
-		final Process ffmpegProcess;
-		final OutputStream ffmpegInput;
+		// Google APIへの音声送信用パイプ.
+		final AudioStreamObserver audioStreamObserver;
+		//これまで文字起こしした結果を記録する蓄積変換テキスト.
 		final StringBuilder accumulatedTranscript = new StringBuilder();
+		// ユーザーが停止を要求したかを記録するフラグ.
+		volatile boolean stopRequested = false;
 
-		StreamingContext(AudioStreamObserver audioStreamObserver, Process ffmpegProcess) {
+		StreamingContext(AudioStreamObserver audioStreamObserver) {
 			this.audioStreamObserver = audioStreamObserver;
-			this.ffmpegProcess = ffmpegProcess;
-			this.ffmpegInput = ffmpegProcess.getOutputStream();
 		}
 	}
 
 	/** WebSocketセッションと、それに対応するストリーミングコンテキストを管理するマップ。 */
-	private final Map<WebSocketSession, StreamingContext> sessions = new ConcurrentHashMap<>();
+	// 「どの利用者 (WebSocketSession) が、どの作業台 (StreamingContext) を使っているか」を記録している.
+	private final Map<WebSocketSession, StreamingContext> sessionMap = new ConcurrentHashMap<>();
 	/** セッションが回復処理中であるかを管理するマップ。 */
-	private final Map<WebSocketSession, Boolean> recoveringSessions = new ConcurrentHashMap<>();
+	private final Map<WebSocketSession, Boolean> recoveringSessionMap = new ConcurrentHashMap<>();
 
 	// --- ストリーミング処理メソッド群 ---
-
 	/**
-	 * 指定されたWebSocketセッションのストリーミング文字起こしを開始する。
-	 * Speech-to-Text APIとの接続を確立し、音声フォーマット変換のためのffmpegプロセスを起動する。
-	 * @param session 文字起こしを開始するWebSocketセッション
+	 * このメソッドは外部からのエントリーポイントになる.
+	 * @param session WebSocketセッション
 	 */
 	public void startStreamingTranscription(WebSocketSession session) {
+		// 新しく作成する、引数が2つのメソッドを空のテキストで呼び出す
+		startStreamingTranscription(session, "");
+	}
+
+	/**
+	 * セッションの開始を宣言し、すべての準備を整えるメソッド。引き継ぎテキストを受け取ることができる.
+	 * WebSocketでメッセージ（音声データなど）が届くと、Springはそのメッセージに「誰から送られてきたか」という情報 (session) を付けてくれる.
+	 * @param session WebSocketセッション
+	 * @param initialTranscript 引き継ぐ初期テキスト
+	 */
+	private void startStreamingTranscription(WebSocketSession session, String initialTranscript) {
 		logger.info("▶️ ストリーミングセッション開始処理を開始: {}", session.getId());
 		try {
-			// STT APIからの文字起こし結果をWebSocketクライアントに送信するコールバックを定義する。
-			Consumer<String> onResult = (String transcript) -> {
-				// --- リアルタイム送信ロジック (コメントアウトして残す) ---
-				/*
-				try {
-					if (session.isOpen()) {
-						session.sendMessage(new TextMessage("{\"transcript\": \"" + transcript + "\"}"));
-					}
-				} catch (IOException e) {
-					logger.error("WebSocketメッセージの送信に失敗: {}", session.getId(), e);
-					// このエラーはSTTクライアントに伝播させる
-					throw new UncheckedIOException("WebSocketメッセージの送信に失敗", e);
-				}
-				*/
-
-				// --- 全文一括送信用の追記ロジック ---
-				StreamingContext context = sessions.get(session);
+			// STT APIからの文字起こし結果を蓄積変換テキストに追記する.
+			Consumer<String> onResult = transcript -> {
+				// セッションマップからStreamingContextを取り出す.
+				StreamingContext context = sessionMap.get(session);
 				if (context != null) {
-					// セッションごとのメモ帳に結果を追記する
+					// StreamingContextの蓄積変換テキスト追加する.
 					context.accumulatedTranscript.append(transcript);
 				}
 			};
+			// STT APIでアイドルタイムアウトが発生した際の処理.
+			Runnable onIdleTimeout = () -> handleSttIdleTimeout(session);
+			// 予期せぬSTT APIエラーが発生した際の処理.
+			Consumer<Throwable> onError = error -> performFullSessionRecovery(session);
 
-			// STT APIでエラーが発生した際の処理を定義する。
-			Consumer<Throwable> onError = (Throwable error) -> {
-				logger.error("STTストリーミングエラーが検知されました: {} - {}", session.getId(), error.getMessage());
-				// 回復処理を試みる
-				restartStreamingSession(session);
+			// Googleとの通信完了時に呼び出される処理.
+			Runnable onStreamCompleted = () -> {
+				StreamingContext context = sessionMap.get(session);
+				// もしユーザーが停止ボタンを押していたら
+				if (context != null && context.stopRequested) {
+					logger.info("Google STTとのストリームが正常に完了しました。最終処理を実行します。 Session: {}", session.getId());
+					// 最終的なテキストを送信して、WebSocket接続を切断する
+					sendFinalTranscriptAndClose(session);
+				}
 			};
 
-			// Speech-to-Textクライアントのストリーミング認識を開始する。
-			AudioStreamObserver sttObserver = speechToTextClient.startStreamingRecognize(onResult, onError);
+			// 新しい利用者が接続してきた際に、その人のためのをStreamingContextを準備してMapに保管する.
+			// 上記で準備した変数を渡してGoogleへの専用回線を開くよう依頼し、音声送信用パイプを受け取る
+			AudioStreamObserver sttObserver = speechToTextClient.startStreamingRecognize(onResult, onIdleTimeout,
+					onError, onStreamCompleted);
+			// 新しいStreamingContextを用意し、受け取った音声送信用パイプを設置する
+			StreamingContext newContext = new StreamingContext(sttObserver);
+			// これから文字起こしするテキストをメモするメモ帳に、前のセッションからの引き継ぎ内容を書き込む
+			newContext.accumulatedTranscript.append(initialTranscript);
+			// セッションマップに保管する.
+			sessionMap.put(session, newContext);
 
-			// WebMをリニアPCMに変換するため、ffmpegプロセスをストリーミングモードで起動する。
-			ProcessBuilder pb = new ProcessBuilder(
-					"ffmpeg",
-					"-i", "pipe:0",
-					"-ar", "16000",
-					"-ac", "1",
-					"-f", "s16le",
-					"pipe:1").redirectErrorStream(true);
-			Process ffmpegProcess = pb.start();
-
-			// ffmpegの標準出力を読み取り、STT APIに送信するための別スレッドを開始する。
-			Thread sttForwarderThread = new Thread(() -> {
-				try (InputStream ffmpegOutput = ffmpegProcess.getInputStream()) {
-					byte[] buffer = new byte[4096];
-					int bytesRead;
-					while ((bytesRead = ffmpegOutput.read(buffer)) != -1) {
-						sttObserver.sendAudio(buffer);
-					}
-				} catch (IOException e) {
-					logger.error("ffmpeg出力の読み取り中にエラーが発生: {}", e.getMessage());
-					// このスレッドのエラーも回復処理のトリガーとする
-					restartStreamingSession(session);
-				}
-			});
-			sttForwarderThread.start();
-
-			// 作成した各種リソースをセッションコンテキストとして保存する。
-			sessions.put(session, new StreamingContext(sttObserver, ffmpegProcess));
 			logger.info("✅ ストリーミングセッション準備完了: {}", session.getId());
 
-		} catch (IOException e) {
+		} catch (Exception e) {
 			logger.error("ストリーミングの開始に致命的な失敗: {}", session.getId(), e);
-			// 初期起動の失敗は回復不可能として例外をスローする
-			throw new UncheckedIOException("ストリーミングの開始に失敗", e);
+			throw new RuntimeException("ストリーミングの開始に失敗", e);
 		}
 	}
 
 	/**
 	 * WebSocketから受信した音声データチャンクを処理する。
 	 * @param session 音声データを送信したWebSocketセッション
-	 * @param audioData 受信した音声データ（WebM形式）
+	 * @param audioData 受信した音声データ（LINEAR16形式）
 	 */
 	public void processAudioChunk(WebSocketSession session, byte[] audioData) {
-		StreamingContext context = sessions.get(session);
+		StreamingContext context = sessionMap.get(session);
 		if (context != null) {
-			try {
-				context.ffmpegInput.write(audioData);
-				context.ffmpegInput.flush();
-			} catch (IOException e) {
-				logger.warn("ffmpegへの書き込みに失敗: {}. 回復処理を開始します。", e.getMessage());
-				// パイプが壊れた可能性が高いので、回復処理を試みる
-				restartStreamingSession(session);
-			}
+			// 音声チャンクをgoogleへのパイプに投入する.
+			context.audioStreamObserver.sendAudio(audioData);
 		}
 	}
 
 	/**
-	 * 指定されたWebSocketセッションのストリーミング文字起こしを停止し、関連リソースを解放する。
+	 * フロントからの停止信号を受け取り、最終処理の準備をするメソッド.
+	 */
+	public void stopAndFinalizeTranscription(WebSocketSession session) {
+		StreamingContext context = sessionMap.get(session);
+		if (context != null) {
+			logger.info("クライアントからの停止要求を受信。Google STTへのストリームを閉じます。 Session: {}", session.getId());
+			context.stopRequested = true;
+			// Googleへの音声送信を完了させる。これにより、最終的にonCompletedコールバックがトリガーされる。
+			context.audioStreamObserver.closeStream();
+		}
+	}
+
+	/**
+	 * ユーザーが「録音停止」ボタンを押す以外の、あらゆる異常セッション終了を処理する.
+	 * TODO 今後はセッションに紐づくユーザーに対して変換成功していたテキストをアプリ再訪時取得できるようにする.
 	 * @param session 終了するWebSocketセッション
 	 */
-	public void stopStreamingTranscription(WebSocketSession session) {
-		logger.info("⏹️ ストリーミングセッション終了処理を開始: {}", session.getId());
-		StreamingContext context = sessions.remove(session);
-		recoveringSessions.remove(session); // 回復中だった場合はフラグを解除
+	public void handleAbnormalClosure(WebSocketSession session) {
+		logger.warn("予期せぬセッションクローズを検知。リソースをクリーンアップします。 Session: {}", session.getId());
+		StreamingContext context = sessionMap.remove(session);
+		recoveringSessionMap.remove(session);
+
+		if (context != null && context.audioStreamObserver != null) {
+			context.audioStreamObserver.closeStream();
+		}
+	}
+
+	/**
+	 * ★★★ [修正点] 最終テキスト送信とセッションクローズを責務とするメソッド ★★★
+	 */
+	private void sendFinalTranscriptAndClose(WebSocketSession session) {
+		// このセッションのすべてのリソースを削除し、削除した値を返す.
+		StreamingContext context = sessionMap.remove(session);
+		recoveringSessionMap.remove(session);
 
 		if (context != null) {
-
 			try {
 				String finalTranscript = context.accumulatedTranscript.toString();
-				// 溜め込んだテキストがあり、セッションが開いている場合のみ送信
-				if (session.isOpen() && !finalTranscript.isEmpty()) {
+				if (session.isOpen()) {
 					logger.info("最終的な文字起こし結果を送信: {}文字", finalTranscript.length());
 					session.sendMessage(new TextMessage("{\"transcript\": \"" + finalTranscript + "\"}"));
+					// サーバー側から正常に接続を閉じる
+					session.close(CloseStatus.NORMAL);
 				}
 			} catch (IOException e) {
-				logger.error("最終的な文字起こし結果の送信に失敗: {}", session.getId(), e);
-			}
-
-			try {
-				if (context.ffmpegInput != null) {
-					context.ffmpegInput.close();
-				}
-				if (context.ffmpegProcess != null) {
-					if (!context.ffmpegProcess.waitFor(3, TimeUnit.SECONDS)) {
-						logger.warn("ffmpegプロセスが時間内に終了しませんでした。強制終了します。 Session: {}", session.getId());
-						context.ffmpegProcess.destroy();
-					}
-				}
-				if (context.audioStreamObserver != null) {
-					context.audioStreamObserver.closeStream();
-				}
-			} catch (IOException e) {
-				logger.error("ストリームのクローズ中にIOエラーが発生: {}", session.getId(), e);
-			} catch (InterruptedException e) {
-				logger.warn("ffmpegプロセスの待機中に割り込みが発生しました。 Session: {}", session.getId());
-				Thread.currentThread().interrupt();
-			} finally {
-				if (context.ffmpegProcess != null && context.ffmpegProcess.isAlive()) {
-					logger.warn("ffmpegプロセスがまだ生存しています。最終手段として強制終了します。 Session: {}", session.getId());
-					context.ffmpegProcess.destroyForcibly();
-				}
+				logger.error("最終的な文字起こし結果の送信またはセッションクローズに失敗: {}", session.getId(), e);
 			}
 		}
 		logger.info("⏹️ ストリーミングセッション終了処理を完了: {}", session.getId());
 	}
 
 	/**
-	 * エラーが発生したストリーミングセッションを再起動する。
+	 * STTのアイドルタイムアウト時に、ユーザーに通知せず裏側で静かに接続を再確立する。
+	 * テキストデータは維持される。
 	 * @param session 回復対象のWebSocketセッション
 	 */
-	void restartStreamingSession(WebSocketSession session) {
-		// すでに回復処理中の場合は何もしない
-		if (recoveringSessions.putIfAbsent(session, true) != null) {
-			logger.info("セッション {} は既に回復処理中のため、スキップします。", session.getId());
+	private void handleSttIdleTimeout(WebSocketSession session) {
+		logger.info("STTアイドルタイムに入りました。処理は継続しています。: {}", session.getId());
+		// 現在のテキストを退避
+		String currentText = "";
+		StreamingContext oldContext = sessionMap.get(session);
+		if (oldContext != null) {
+			currentText = oldContext.accumulatedTranscript.toString();
+		} else {
+			// コンテキストが存在しない場合は何もしない
 			return;
 		}
-
-		logger.info("🔄 ストリーミングセッションの回復処理を開始: {}", session.getId());
-
-		try {
-			// ユーザーに再接続中であることを通知
-			if (session.isOpen()) {
-				session.sendMessage(new TextMessage("{\"status\": \"reconnecting\"}"));
-			}
-
-			// 既存のリソースをクリーンアップ
-			stopStreamingTranscription(session);
-
-			// 少し待機してから再接続
-			Thread.sleep(1000); // 1秒待機
-
-			// セッションを再起動
-			logger.info("🔄 ストリーミングセッションを再起動します: {}", session.getId());
-			startStreamingTranscription(session);
-
-		} catch (Exception e) {
-			logger.error("ストリーミングセッションの回復に失敗しました。セッションを終了します。: {}", session.getId(), e);
-			// 回復に失敗した場合は、最終的にセッションを閉じる
-			try {
-				if (session.isOpen()) {
-					session.sendMessage(new TextMessage("{\"error\": \"回復不可能なエラーが発生しました。\"}"));
-					session.close(org.springframework.web.socket.CloseStatus.SERVER_ERROR);
-				}
-			} catch (IOException closeException) {
-				logger.error("セッションクローズ通知の送信に失敗: {}", session.getId(), closeException);
-			}
-		} finally {
-			// 回復処理の完了（成功・失敗問わず）
-			recoveringSessions.remove(session);
+		// 既存のリソースをクリーンアップ
+		if (oldContext.audioStreamObserver != null) {
+			oldContext.audioStreamObserver.closeStream();
 		}
-	}
+		// 新しいSTTストリームを開始し、退避したテキストを引き継ぐ
 
-	// --- ファイルベースの文字起こし処理 ---
-	public String transcribe(MultipartFile file) {
-		try {
-			File webm = Files.createTempFile("recoding-", ".webm").toFile();
-			file.transferTo(webm);
-			File wav = new File(webm.getParent(), UUID.randomUUID() + ".wav");
-			convertWebmToWav(webm, wav);
-			return speechToTextClient.recognizeFromWav(wav.getAbsolutePath());
-		} catch (InterruptedException ie) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("スレッドが中断されました。", ie);
-		} catch (IOException ioe) {
-			throw new UncheckedIOException("音声ファイル処理に失敗", ioe);
-		}
-	}
-
-	private void convertWebmToWav(File input, File output) throws IOException, InterruptedException {
-		ProcessBuilder pb = new ProcessBuilder(
-				"ffmpeg", "-i", input.getAbsolutePath(),
-				"-ar", "16000", "-ac", "1", "-f", "wav", "-c:a", "pcm_s16le",
-				output.getAbsolutePath()).redirectErrorStream(true);
-		Process process = pb.start();
-		try (var in = process.getInputStream()) {
-			in.transferTo(OutputStream.nullOutputStream());
-		}
-		int exit = process.waitFor();
-		if (exit != 0) {
-			throw new IllegalStateException("ffmpeg 変換失敗（exit=" + exit + ')');
-		}
+		startStreamingTranscription(session, currentText);
+		logger.info("STT再接続の引継ぎ処理が完了しました: {}", session.getId());
 	}
 
 	/**
-	 * ffmpegプロセスを生成する。
-	 * ユニットテストでこのメソッドをモック化できるようにprotectedスコープとする。
-	 * @return 生成されたffmpegプロセス
-	 * @throws IOException プロセスの起動に失敗した場合
+	 * Google STT APIとの通信中に致命的なエラーが発生した際に、
+	 * セッション全体を再起動して文字起こしを継続させるための、全面的な回復処理。
+	 * @param session 回復対象のWebSocketセッション
 	 */
-	protected Process createFfmpegProcess() throws IOException {
-		ProcessBuilder pb = new ProcessBuilder(
-				"ffmpeg",
-				"-i", "pipe:0",
-				"-ar", "16000",
-				"-ac", "1",
-				"-f", "s16le",
-				"pipe:1").redirectErrorStream(true);
-		return pb.start();
+	private void performFullSessionRecovery(WebSocketSession session) {
+		if (recoveringSessionMap.putIfAbsent(session, true) != null) {
+			return;
+		}
+		// 回復処理を始める前に蓄積変換テキストのデータを取得する.
+		String previousText = "";
+		StreamingContext oldContext = sessionMap.get(session);
+		if (oldContext != null) {
+			previousText = oldContext.accumulatedTranscript.toString();
+		}
+		try {
+			logger.info("🔄 Google STT APIとの通信中にエラーが発生しました。ストリーミングセッションの回復処理を開始します: {}", session.getId());
+			if (session.isOpen()) {
+				session.sendMessage(new TextMessage("{\"status\": \"reconnecting\"}"));
+			}
+			handleAbnormalClosure(session);
+			Thread.sleep(1000);
+			startStreamingTranscription(session, previousText);
+			logger.info("✅ ストリーミングセッションの回復に成功しました: {}", session.getId());
+			// 回復完了をフロントに通知.
+			if(session.isOpen()){
+                session.sendMessage(new TextMessage("{\"status\": \"recovered\"}"));
+            }
+		} catch (Exception e) {
+			logger.error("セッションの回復に失敗しました。最終処理を実行します。: {}", session.getId(), e);
+			try {
+                if (session.isOpen()) {
+                    // ★★★ [修正点] 回復失敗の専用エラーと、それまでのテキストを送信 ★★★
+                    String jsonError = String.format(
+                        "{\"error\": \"RECOVERY_FAILED\", \"transcript\": \"%s\"}",
+                        previousText.replace("\"", "\\\"") // JSONエスケープ
+                    );
+                    session.sendMessage(new TextMessage(jsonError));
+                    session.close(CloseStatus.SERVER_ERROR);
+                }
+            } catch (IOException closeException) {
+                logger.error("回復失敗の通知とセッションクローズに失敗しました", closeException);
+            }
+		} finally {
+			recoveringSessionMap.remove(session);
+		}
 	}
 }
