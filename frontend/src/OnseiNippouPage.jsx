@@ -13,6 +13,8 @@ function OnseiNippou() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     // ユーザーに進捗やエラーを通知するためのメッセージを保持する状態
     const [statusMessage, setStatusMessage] = useState('');
+    // サーバーから取得したユーザー情報を保持するstate
+    const [userInfo, setUserInfo] = useState(null);
 
     // --- Ref Hooks: 再レンダリングを引き起こさない値を保持 ---
     // Web Audio APIの心臓部であるAudioContextのインスタンスを保持
@@ -28,14 +30,47 @@ function OnseiNippou() {
     // サーバーから受信した最新の完全な文字起こしテキストを一時的に保持（stateの非同期更新を回避するため）
     const latestTranscriptRef = useRef('');
 
-    // ★★★ [新規] アプリ初回読み込み時に、一度だけ通知の許可をユーザーに尋ねる ★★★
+    // ページが最初に読み込まれた時に、サーバーからユーザー情報を取得する
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            try {
+                if (import.meta.env.PROD) {
+                    // サーバーに現在ログインしているユーザーの情報を問い合わせる
+                    const response = await fetch('/api/users/me'); // 実際のAPIエンドポイントに合わせて変更
+                    if (!response.ok) {
+                        throw new Error('ユーザー情報の取得に失敗しました。');
+                    }
+                    const data = await response.json();
+                    // 取得したユーザー情報をstateに保存する
+                    setUserInfo(data);
+                } else {
+                    // ローカル開発環境(npm run dev)では、仮のデータを設定する
+                    console.log("開発モード: 仮のユーザー情報を使用します。");
+                    const mockUserInfo = {
+                        userName: "開発用 太郎",
+                        profileImageUrl: "https://via.placeholder.com/40",
+                        sheetId: "1Ly0Y5838eO86gQDnHi6FbKb8KhGr977SPkIKNv8Hrik" // 自分のテスト用シートID
+                    };
+                    setUserInfo(mockUserInfo);
+                }
+            } catch (error) {
+                console.error(error);
+                // エラーが発生した場合の処理（例: エラーメッセージを表示）
+                setStatusMessage('ユーザー情報の読み込みに失敗しました。');
+            }
+        };
+
+        fetchUserInfo();
+    }, []);
+
+    // アプリ初回読み込み時に、一度だけ通知の許可をユーザーに尋ねる
     useEffect(() => {
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
     }, []); // 空の配列[]は「最初の一回だけ実行して」という意味
 
-    // ★★★ [新規] 回復失敗時に通知とバイブレーションを実行する関数 ★★★
+    // 回復失敗時に通知とバイブレーションを実行する関数
     const notifyUserOfFailure = () => {
         // デバイス通知（ユーザーが許可している場合のみ）
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -284,7 +319,14 @@ function OnseiNippou() {
     // --- レンダリングされるJSX ---
     return (
         <>
-            <HamburgerMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+            {/* 取得したユーザー情報をHamburgerMenuにpropsとして渡す */}
+            <HamburgerMenu
+                isOpen={isMenuOpen}
+                onClose={() => setIsMenuOpen(false)}
+                userName={userInfo?.userName}
+                profileImageUrl={userInfo?.profileImageUrl}
+                sheetId={userInfo?.sheetId}
+            />
             <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 transition-all duration-300 ease-in-out`}>
                 <div className="p-8 font-sans">
                     {/* ハンバーガーメニューを開くボタン */}
