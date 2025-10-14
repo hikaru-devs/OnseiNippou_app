@@ -14,13 +14,27 @@ const HamburgerMenu = ({ isOpen, onClose, userName, userEmail, profileImageUrl, 
   // ログアウト処理を行う関数
   const handleLogout = async () => {
     try {
-      // Spring SecurityのログアウトエンドポイントにPOSTリクエストを送信
-      await fetch('/logout', { method: 'POST' });
-      // ログアウト成功後、ページをリロードしてログイン画面にリダイレクトさせる
-      window.location.reload();
+      const response = await fetch('/logout', {
+        method: 'POST',
+      });
+
+      // サーバーからの応答が正常であれば、ログインページへ移動
+      if (response.ok) {
+        window.location.href = '/login?logout';
+        return; // 処理を終了
+      }
+      
+      // サーバーがエラーを返した場合の処理 (ここを修正)
+      console.error('サーバーがログアウト処理に失敗しました。ステータス:', response.status);
+      // エラーの応答内容をテキストとして読み取り、コンソールに表示
+      const errorText = await response.text();
+      console.error('サーバーからの応答:', errorText);
+      alert('ログアウトに失敗しました。コンソールを確認してください。');
+
     } catch (error) {
-      console.error('ログアウト処理に失敗しました:', error);
-      alert('ログアウトに失敗しました。');
+      // ネットワークエラーなどでリクエスト自体が失敗した場合
+      console.error('ログアウトのリクエスト送信に失敗しました:', error);
+      alert('ログアウト中にネットワークエラーが発生しました。');
     }
   };
 
@@ -69,12 +83,7 @@ const HamburgerMenu = ({ isOpen, onClose, userName, userEmail, profileImageUrl, 
                 </a>
               </li>
               {/* アップデート情報モーダルを開くボタン */}
-              <li>
-                <button onClick={() => setIsUpdateModalOpen(true)} className="w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
-                  アップデート情報
-                </button>
-              </li>
-              <li><span className="block p-2 rounded text-gray-400 cursor-not-allowed">給与明細を確認</span></li>
+              <li><span className="block p-2 rounded text-gray-400 cursor-not-allowed">給与明細を確認（仮）</span></li>
             </ul>
           </div>
 
@@ -82,16 +91,29 @@ const HamburgerMenu = ({ isOpen, onClose, userName, userEmail, profileImageUrl, 
           <div className="p-4">
             <h3 className="text-xs font-semibold text-gray-400 uppercase">Your Activity</h3>
             <ul className="mt-2 space-y-2">
-              <li className="flex justify-between items-center"><span>日報送信回数</span><span className="text-xs text-gray-400">{stats.submissionCount}</span></li>
-              <li className="flex justify-between items-center"><span>連続送信日数</span><span className="text-xs text-gray-400">{stats.streak}</span></li>
-              <li className="flex justify-between items-center"><span>平均録音時間</span><span className="text-xs text-gray-400">{stats.avgRecordingTime}</span></li>
+              <li className="flex justify-between items-center"><span>日報送信回数（仮）</span><span className="text-xs text-gray-400">{stats.submissionCount}</span></li>
+              <li className="flex justify-between items-center"><span>連続送信日数（仮）</span><span className="text-xs text-gray-400">{stats.streak}</span></li>
+              <li className="flex justify-between items-center"><span>平均録音時間（仮）</span><span className="text-xs text-gray-400">{stats.avgRecordingTime}</span></li>
             </ul>
           </div>
+
+          {/* Spacer to push the button down */}
+          <div className="flex-grow"></div> {/* この空のdivが可変のスペースになります */}
+
+          {/* Update Info Button Section */}
+          <div className="mt-auto p-4 dark:border-gray-700"> {/* 下方向の余白(pb-4)を追加 */}
+            <button
+              onClick={() => setIsUpdateModalOpen(true)}
+              className="w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-400"
+            >
+              アップデート情報
+            </button>
+          </div>         
 
           {/* Footer */}
           <div className="mt-auto p-4 border-t border-gray-200 dark:border-gray-700">
             {/* [修正] ログアウトボタンに関数を紐付け */}
-            <button onClick={handleLogout} className="w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+            <button onClick={handleLogout} className="w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-400">
               ログアウト
             </button>
           </div>
@@ -132,15 +154,15 @@ const UpdateInfoModal = ({ isOpen, onClose }) => {
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-red-500 font-bold text-2xl">&times;</button>
         </div>
         <div className="p-6 text-sm">
-          <h3 className="font-bold">バージョン 1.1.0 (2025/10/13)</h3>
+          <h3 className="font-bold">バージョン 2.0.0 (2025/10/15)</h3>
           <ul className="list-disc list-inside mt-2 space-y-1">
-            <li>自己回復機能の安定性を向上させました。</li>
-            <li>回復失敗時にデバイス通知で知らせる機能を追加しました。</li>
-            <li>5分間の連続録音上限に対応しました。</li>
-          </ul>
-          <h3 className="font-bold mt-4">バージョン 1.0.0 (2025/10/12)</h3>
-          <ul className="list-disc list-inside mt-2 space-y-1">
-            <li>リアルタイム文字起こし機能をリリースしました。</li>
+            <li>録音時間の1分制限を無くし、無限に録音可能となりました。ただし、寝落ちには対応していません！（次回対応予定）googleのAPIリソースを消費し続けます。</li>
+            <li>テキスト変換速度が録音時間によらず、高速になりました。</li>
+            <li>連続して録音が可能になりました。文字起こし結果はテキストエリアに追加されます。</li>
+            <li>ハンバーガーメニューを実装しました。ログアウト機能、自分の日報シートへの遷移機能を実装しました。</li>
+            <li>セッションが切れるのは2日後に設定しました。2日以内でしたら、ページ再訪時、ログイン不要です。</li>
+            <li>通知の許可を実装しました。サーバー側で回復不能なエラーが起きた時、無効な録音を防止するため、通知とバイブレーションを起こすためです。許可をお願いいたします。</li>
+            <li>無効なリダイレクトが繰り返され、ページがリロードできないバグを改修しました。</li>
           </ul>
         </div>
       </div>

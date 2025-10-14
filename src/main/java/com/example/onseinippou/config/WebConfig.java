@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
@@ -38,14 +37,6 @@ public class WebConfig implements WebMvcConfigurer, WebSocketConfigurer {
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(loggingInterceptor)
 				.addPathPatterns("/onsei-nippou-page/**"); // 監視対象
-	}
-
-	@Override
-	public void addViewControllers(ViewControllerRegistry registry) {
-		registry.addViewController("/{path:^(?!assets|static|.*\\..*$).*$}")
-				.setViewName("forward:/index.html");
-		registry.addViewController("/{path:^(?!assets|static|.*\\..*$).*$}/**")
-				.setViewName("forward:/index.html");
 	}
 
 	/**

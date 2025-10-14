@@ -104,9 +104,8 @@ function OnseiNippou() {
      * 録音を開始し、マイクからの音声をサーバーにストリーミングする処理。
      */
     const startRecording = async () => {
-        // 前回の文字起こし結果が残っている場合があるので、初期化する
+        // 新しい文字起こしを保持するRefのみを初期化し、既存のテキスト(transcript)は消さない
         latestTranscriptRef.current = '';
-        setTranscript('');
 
         try {
             // ユーザーにマイクへのアクセス許可を要求し、メディアストリームを取得
@@ -135,6 +134,14 @@ function OnseiNippou() {
             socketRef.current = ws;
 
             // --- WebSocketのイベントハンドラを設定 ---
+
+            // 接続エラーが発生したときに呼ばれる
+            ws.onerror = (error) => {
+                console.log("onerrorイベントが発火しました");
+                console.error('WebSocket error:', error);
+                alert('セッションが切れたか、接続に失敗しました。再度ログインしてください。');
+                window.location.href = '/login';
+            };
 
             // 接続が正常に確立されたときに呼ばれる
             ws.onopen = () => {
@@ -185,18 +192,18 @@ function OnseiNippou() {
                 } 
             };
 
-            // 接続エラーが発生したときに呼ばれる
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setStatusMessage('WebSocket接続エラーが発生しました。');
-            };
+            
 
-            // ★★★ [修正点] サーバーから接続が切断されたときに最終処理を行う ★★★
-            // サーバーが文字起こしを完了し、接続を閉じたときに呼ばれる
+            // サーバーからの接続が閉じた際に、結果を「追記」する
             ws.onclose = () => {
                 console.log('WebSocket connection closed by server.');
-                // サーバーから最後に受け取った完全なテキストを画面のテキストエリアに反映させる
-                setTranscript(latestTranscriptRef.current);
+                // サーバーから最後に受け取った完全なテキストを、既存テキストの末尾に追記する
+                setTranscript(prevTranscript => 
+                    // 既にテキストがあれば改行を挟んで追記し、なければ新しいテキストをそのままセット
+                    prevTranscript 
+                    ? prevTranscript + latestTranscriptRef.current 
+                    : latestTranscriptRef.current
+                );
                 setStatusMessage('録音が完了しました。');
                 // 念のため、クライアント側のリソースもクリーンアップする
                 stopRecordingCleanup();
@@ -344,7 +351,7 @@ function OnseiNippou() {
                             </button>
                             {/* 録音停止ボタン: 録音中でない時やロード中は無効化 */}
                             <button onClick={stopRecording} disabled={!isRecording || isLoading}
-                                className="border border-indigo-500 text-indigo-700 font-semibold py-2 px-4 rounded hover:bg-indigo-50 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-gray-800"
+                                className="border border-indigo-500 text-indigo-700 font-semibold py-2 px-4 rounded hover:bg-indigo-50 disabled:opacity-50 dark:text-indigo-600 dark:hover:bg-gray-800"
                             >
                                 録音停止
                             </button>
