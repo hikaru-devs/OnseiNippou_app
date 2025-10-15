@@ -56,7 +56,7 @@ function OnseiNippou() {
             } catch (error) {
                 console.error(error);
                 // エラーが発生した場合の処理（例: エラーメッセージを表示）
-                setStatusMessage('ユーザー情報の読み込みに失敗しました。');
+                // setStatusMessage('ユーザー情報の読み込みに失敗しました。');
             }
         };
 

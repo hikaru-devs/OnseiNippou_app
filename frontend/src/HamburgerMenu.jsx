@@ -69,7 +69,7 @@ const HamburgerMenu = ({ isOpen, onClose, userName, userEmail, profileImageUrl, 
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-xs font-semibold text-gray-400 uppercase">Quick Links</h3>
             <ul className="mt-2 space-y-1">
-              <li>
+              {/* <li>
                 <a 
                   href={sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : '#'}
                   target="_blank" 
@@ -81,6 +81,11 @@ const HamburgerMenu = ({ isOpen, onClose, userName, userEmail, profileImageUrl, 
                 >
                   日報シートを開く
                 </a>
+              </li> */}
+              <li>
+                <span className="block p-2 rounded text-gray-400 cursor-not-allowed">
+                  日報シートを開く
+                </span>
               </li>
               {/* アップデート情報モーダルを開くボタン */}
               <li><span className="block p-2 rounded text-gray-400 cursor-not-allowed">給与明細を確認（仮）</span></li>
@@ -145,7 +150,7 @@ const UpdateInfoModal = ({ isOpen, onClose }) => {
       />
       {/* モーダル本体用のdiv（z-indexで背景より手前に表示） */}
       <div 
-        className="relative z-10 bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md m-4"
+        className="relative z-10 bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xl m-4"
         // モーダル内をクリックしても閉じないように、イベント伝播を止める
         onClick={(e) => e.stopPropagation()}
       >
@@ -153,16 +158,18 @@ const UpdateInfoModal = ({ isOpen, onClose }) => {
           <h2 className="text-lg font-semibold">アップデート情報</h2>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-red-500 font-bold text-2xl">&times;</button>
         </div>
-        <div className="p-6 text-sm">
+        <div className="p-6 py-8 text-sm overflow-y-auto max-h-[80vh]">
           <h3 className="font-bold">バージョン 2.0.0 (2025/10/15)</h3>
           <ul className="list-disc list-inside mt-2 space-y-1">
-            <li>録音時間の1分制限を無くし、無限に録音可能となりました。ただし、寝落ちには対応していません！（次回対応予定）googleのAPIリソースを消費し続けます。</li>
+            <li>録音時間の1分制限を無くし、無限に録音可能となりました。ただし、録音開始後に寝落ちする場合は未対応であり、googleのAPIリソースを消費し続けますのでご注意ください。（次回対応予定）</li>
             <li>テキスト変換速度が録音時間によらず、高速になりました。</li>
             <li>連続して録音が可能になりました。文字起こし結果はテキストエリアに追加されます。</li>
-            <li>ハンバーガーメニューを実装しました。ログアウト機能、自分の日報シートへの遷移機能を実装しました。</li>
-            <li>セッションが切れるのは2日後に設定しました。2日以内でしたら、ページ再訪時、ログイン不要です。</li>
+            <li>ハンバーガーメニューを実装しました。</li>
+            <li>セッションが2日後に切れるように設定しました。セッションが有効な場合、ログイン不要です。</li>
             <li>通知の許可を実装しました。サーバー側で回復不能なエラーが起きた時、無効な録音を防止するため、通知とバイブレーションを起こすためです。許可をお願いいたします。</li>
             <li>無効なリダイレクトが繰り返され、ページがリロードできないバグを改修しました。</li>
+            <li>録音停止を押すと、マイクの録音マークが消えるようになりました。</li>
+            <li>日報を送信した際の日付の表示を yyyy-MM-dd HH:mm:ss から mm/dd (曜日) に変更しました。</li>
           </ul>
         </div>
       </div>
