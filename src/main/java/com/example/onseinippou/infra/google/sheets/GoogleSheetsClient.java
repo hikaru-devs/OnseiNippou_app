@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 import jakarta.annotation.Nullable;
 
@@ -53,8 +54,8 @@ public class GoogleSheetsClient {
 	}
 
 	/**
-	 * @param spreadsheetId 対象スプレッドシートの ID
-	 * @param text          ユーザーが入力した日報テキスト
+	 * @param spreadsheetId 対象スプレッドシートのID.
+	 * @param text ユーザーが入力した日報テキスト.
 	 */
 
 	public AppendResult appendNippou(String sheetId, String text) {
@@ -62,7 +63,8 @@ public class GoogleSheetsClient {
 		try {
 
 			// タイムスタンプ生成.
-			String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd (E)", Locale.JAPANESE);
+			String timestamp = LocalDateTime.now().format(formatter);
 
 			// シートへ追記する情報をList化してSheetsApiのbodyにつめる
 			List<List<Object>> values = List.of(List.of(timestamp, text));
