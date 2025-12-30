@@ -1,18 +1,7 @@
 logging.level.org.springframework.web.servlet.resource: INFO # Springの静的リソース配信処理（CSS, JS等）のログ出力レベルを指定する。
-logging.level.org.springframework.web: DEBUG # SpringのWeb関連全体（コントローラー等）のログ出力レベルを指定する。
+logging.level.org.springframework.web: INFO
+# AudioServiceのログレベルをDEBUGに設定し、詳細な情報を表示する
+logging.level.com.example.onseinippou.service.AudioService: INFO
+# SpringのWeb関連全体（コントローラー等）のログ出力レベルを指定する。
 server.error.include-message: never # サーバーエラー時のレスポンスにエラーメッセージ(message)を含めるかどうかを制御する。
 
-# | プロパティ名                                            | 説明                                                    |
-# | ------------------------------------------------- | ----------------------------------------------------- |
-# | `logging.level.<パッケージ名>`                          | 指定したパッケージやクラスのログレベルを制御（例: DEBUG, INFO, WARN, ERROR）   |
-# | `logging.file.name`                               | ログファイル名（パス含む）を指定（例: `/var/log/sample.log`）            |
-# | `logging.file.path`                               | ログファイルの出力ディレクトリを指定（例: `/var/log`、ファイル名は`spring.log`等） |
-# | `logging.pattern.console`                         | コンソール出力のログフォーマットパターン指定                                |
-# | `logging.pattern.file`                            | ファイル出力のログフォーマットパターン指定                                 |
-# | `logging.charset.console`                         | コンソールログの文字コード（例: UTF-8）                               |
-# | `logging.charset.file`                            | ファイルログの文字コード（例: UTF-8）                                |
-# | `logging.group.<グループ名>`                           | 複数のパッケージをグルーピングしてログレベルを設定                             |
-# | `logging.exception-conversion-word`               | 例外スタックトレースの出力形式を指定                                    |
-# | `logging.register-shutdown-hook`                  | 終了時にロガーのシャットダウンフック登録の有無（デフォルト: true）                  |
-# | `logging.logback.rollingpolicy.file-name-pattern` | ログのローテーション時のファイル名パターン（Logback使用時）                     |
-# | `logging.logback.rollingpolicy.max-history`       | ローテートするファイルの最大保持数（Logback使用時）                         |
