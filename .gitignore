@@ -79,16 +79,6 @@ frontend/.env.*.local
 # ESLint cache
 frontend/.eslintcache
 
-# ===================================================================
-# Application-specific
-# ===================================================================
-# Local application properties
-# IMPORTANT: Commit application.properties as a template.
-# Create and use application-local.properties for local overrides.
-src/main/resources/application-local.properties
-
 # Sensitive files
 gcp-key/
 
-### application.properties ###
-src/main/resources/application.properties
