@@ -10,10 +10,7 @@
 ehthumbs.db
 Thumbs.db
 
-# ===================================================================
-# IDE
-# ===================================================================
-# IntelliJ
+# IntelliJ IDEA
 .idea/
 *.iml
 *.iws
@@ -28,6 +25,7 @@ out/
 .factorypath
 .springBeans
 .sts4-cache
+bin/
 
 # VSCode
 .vscode/*
@@ -40,9 +38,6 @@ out/
 # ===================================================================
 # Maven build output
 target/
-
-# Maven wrapper
-.mvn/wrapper/maven-wrapper.jar
 
 # Log files
 *.log
@@ -70,11 +65,6 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 frontend/lerna-debug.log*
-
-# Local environment variables
-# IMPORTANT: Commit a template file (e.g., .env.example) instead
-frontend/.env.local
-frontend/.env.*.local
 
 # ESLint cache
 frontend/.eslintcache
